@@ -1,0 +1,14 @@
+{
+  "name": "siddhesh-sonar-blog",
+  "version": "1.0.0",
+  "description": "Deep technical writing on edge AI, on-device inference, and mobile AI engineering",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js && npx serve dist",
+    "new": "node new-post.js"
+  },
+  "dependencies": {
+    "marked": "^12.0.0",
+    "front-matter": "^4.0.2"
+  }
+}

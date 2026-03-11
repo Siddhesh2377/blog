@@ -1,0 +1,181 @@
+---
+title: "How ToolNeuron Runs LLMs on Android: Architecture Deep Dive"
+description: "A technical deep dive into running large language models on Android using native C++ inference, JNI bindings, GGML, and llama.cpp — from model loading to token generation."
+date: "2026-03-11"
+tags: [llama.cpp, android, on-device-inference, ggml, jni, architecture]
+published: true
+---
+
+Most people think running LLMs on a phone means "call an API." ToolNeuron runs them entirely on-device — no server, no internet, no API keys. Here's how.
+
+## The Problem
+
+Running a 7B parameter model requires roughly 4-7GB of RAM depending on quantization. A typical Android phone has 6-8GB total, shared with the OS, other apps, and the GPU. You can't just load a model into memory and call it a day.
+
+The real challenge isn't "can it run?" — it's "can it run without the OS killing your app, while maintaining acceptable token generation speed, on hardware that varies wildly across devices?"
+
+## Architecture Overview
+
+ToolNeuron's inference stack has four layers:
+
+```
+┌─────────────────────────────────┐
+│  Kotlin UI (Jetpack Compose)    │  ← User sees this
+├─────────────────────────────────┤
+│  Kotlin Inference Manager       │  ← Orchestrates everything
+├─────────────────────────────────┤
+│  JNI Bridge (C++ ↔ Kotlin)     │  ← Crosses the language boundary
+├─────────────────────────────────┤
+│  Native C++ (llama.cpp/GGML)   │  ← Actual tensor operations
+└─────────────────────────────────┘
+```
+
+Each layer exists for a specific reason. Let me walk through them bottom-up.
+
+## Layer 1: Native C++ Inference (GGML + llama.cpp)
+
+The foundation is [llama.cpp](https://github.com/ggerganov/llama.cpp) — Georgi Gerganov's C/C++ implementation of LLM inference. It uses GGML, a tensor library designed for inference on consumer hardware.
+
+### Why not TensorFlow Lite or ONNX Runtime?
+
+Both are good frameworks, but for LLM inference on Android:
+
+- **TFLite** doesn't natively support the transformer architectures used by Llama, Qwen, Mistral, etc. You'd need to convert models, losing quantization quality.
+- **ONNX Runtime** supports transformers but its Android footprint is large, and KV-cache management for autoregressive generation isn't as mature.
+- **llama.cpp/GGML** was built specifically for this. It understands GGUF model format natively, handles KV-cache efficiently, and supports quantization schemes (Q4_K_M, Q5_K_S, Q8_0) that were designed for the exact memory/quality tradeoffs we need on mobile.
+
+### GGUF Model Loading
+
+When ToolNeuron loads a model, here's what actually happens:
+
+```cpp
+// Simplified — the actual code has error handling and progress callbacks
+struct llama_model_params model_params = llama_model_default_params();
+model_params.n_gpu_layers = 0; // CPU-only on most Android devices
+model_params.use_mmap = true;  // Memory-map the file — critical for mobile
+
+struct llama_model* model = llama_load_model_from_file(path, model_params);
+```
+
+**`use_mmap = true` is critical.** Memory-mapping means the OS loads model weights from disk on demand instead of reading the entire file into RAM. On a 4GB quantized model, this can mean the difference between 4GB resident memory and 1-2GB, because the OS only keeps recently-accessed pages in RAM.
+
+### Quantization: The Key Tradeoff
+
+A 7B model in FP16 is ~14GB. That won't fit on any phone. Quantization compresses the weights:
+
+| Format | Size (7B) | Quality | Speed on ARM |
+|--------|-----------|---------|--------------|
+| Q8_0   | ~7.5GB    | Near-FP16 | Baseline |
+| Q5_K_S | ~5.0GB    | Good      | 1.1x faster |
+| Q4_K_M | ~4.1GB    | Acceptable | 1.3x faster |
+| Q3_K_M | ~3.3GB    | Noticeable degradation | 1.5x faster |
+
+ToolNeuron defaults to Q4_K_M for 7B models on devices with 6GB+ RAM. For 8GB+ devices, Q5_K_S gives a meaningful quality improvement at a small speed cost.
+
+The quantization format isn't just about size — it affects which SIMD instructions can be used. ARM NEON can process Q4 weights using `vld1q_u8` + shift operations that are extremely efficient. Q5 requires extra bit manipulation that's measurably slower.
+
+## Layer 2: JNI Bridge
+
+Kotlin can't call C++ directly. The Java Native Interface (JNI) is the bridge, and it's where most Android AI apps get it wrong.
+
+### The Naive Approach (Don't Do This)
+
+```kotlin
+// BAD: Allocating a new string for every token
+external fun generateNextToken(): String
+```
+
+This creates a new Java String object for every generated token. At 20 tokens/second, that's 20 JNI boundary crossings and 20 heap allocations per second. The garbage collector will hate you.
+
+### What ToolNeuron Does Instead
+
+```kotlin
+// GOOD: Batch callback with direct byte buffer
+external fun startGeneration(
+    modelPtr: Long,
+    prompt: String,
+    params: Long,
+    callback: Long  // Function pointer to Kotlin callback
+)
+```
+
+The native code runs the full generation loop in C++, calling back to Kotlin only when it has a batch of tokens or when the user needs to see output. This minimizes JNI crossings from O(tokens) to O(batches).
+
+For the token data itself, we use `DirectByteBuffer` — a Java NIO buffer that lives outside the JVM heap, accessible from both C++ and Kotlin without copying:
+
+```cpp
+// C++ side: write token directly into shared buffer
+void write_token_to_buffer(JNIEnv* env, jobject buffer, const char* token, int len) {
+    char* buf = (char*)env->GetDirectBufferAddress(buffer);
+    memcpy(buf + offset, token, len);
+}
+```
+
+### Memory Management Across the JNI Boundary
+
+The model pointer (`llama_model*`) lives in C++ heap memory. Kotlin holds it as a `Long`. This means:
+
+1. Kotlin can pass the pointer to any JNI function
+2. The model isn't subject to garbage collection
+3. You MUST manually free it — there's no destructor
+
+ToolNeuron uses a reference-counted wrapper that calls `llama_free_model()` when the last Kotlin reference is released. If the app crashes before cleanup, Android's process death handles it — the OS reclaims all memory including native allocations.
+
+## Layer 3: Kotlin Inference Manager
+
+This layer handles everything the C++ layer shouldn't care about:
+
+- **Model discovery**: Scanning storage for GGUF files, reading metadata
+- **Runtime model switching**: Unloading one model, loading another without restarting
+- **Context management**: Creating/destroying llama contexts for different conversations
+- **Parameter management**: Temperature, top-p, top-k, repeat penalty — all configurable per-conversation
+- **Streaming output**: Converting token callbacks into Kotlin Flows that the UI observes
+
+### The Model Switch Problem
+
+Switching models on mobile is expensive. You need to:
+
+1. Finish or cancel current generation
+2. Free the context (KV-cache memory)
+3. Free the model (weights memory)
+4. Wait for memory to actually be reclaimed
+5. Load the new model
+6. Create a new context
+
+Steps 3-4 are where Android gets tricky. `llama_free_model()` calls `free()`, but the allocator might not return memory to the OS immediately. ToolNeuron forces a `malloc_trim(0)` after freeing to hint that the freed memory should be returned.
+
+## Layer 4: UI
+
+Jetpack Compose observes the Kotlin Flows from the Inference Manager. Token-by-token streaming is rendered using `LazyColumn` with incremental text updates. Nothing fancy here — the complexity is all below.
+
+## What I Learned Building This
+
+1. **mmap is non-negotiable on mobile.** Without it, you're dead on devices with less than 8GB RAM.
+
+2. **JNI crossings are expensive.** Batch your data. Use direct buffers. Minimize the number of JNI calls in hot paths.
+
+3. **Quantization choice depends on the device, not just the model.** Q4_K_M on a Snapdragon 8 Gen 3 gives different quality/speed tradeoffs than on a Dimensity 9300 because of different NEON implementations and cache sizes.
+
+4. **Android will kill your app.** If you're using too much memory and the user switches to another app, Android's LMK (Low Memory Killer) will terminate your process. You need to be aggressive about memory management and graceful about being killed.
+
+5. **Users don't care about tokens/second.** They care about "does it feel responsive?" Streaming the first token fast matters more than peak throughput. ToolNeuron prioritizes time-to-first-token by using smaller batch sizes for the initial prompt processing.
+
+## Numbers
+
+On a Snapdragon 8 Gen 2 device with 8GB RAM, running Qwen 2.5 7B Q4_K_M:
+
+- **Model load time**: ~3.2 seconds (mmap, cold start)
+- **Prompt processing**: ~180 tokens/second
+- **Token generation**: ~18 tokens/second
+- **Memory usage**: ~2.1GB resident (4.1GB model, mmap keeps most on disk)
+- **Time to first token** (for a 50-token prompt): ~280ms
+
+These numbers vary significantly across devices. A Snapdragon 680 (budget phone) generates at ~4 tokens/second. A Snapdragon 8 Gen 3 hits ~24 tokens/second with the same model.
+
+## Open Source
+
+ToolNeuron is Apache 2.0 licensed: [github.com/Siddhesh2377/ToolNeuron](https://github.com/Siddhesh2377/ToolNeuron)
+
+The native inference engine: [github.com/Siddhesh2377/Ai-Systems-New](https://github.com/Siddhesh2377/Ai-Systems-New)
+
+If you're building on-device AI for Android and want to talk architecture, find me on [X/Twitter](https://x.com/Sonar_2377) or [LinkedIn](https://linkedin.com/in/siddhesh-sonar-7840a7260).
