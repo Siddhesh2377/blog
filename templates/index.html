@@ -24,7 +24,7 @@
   <meta name="twitter:title" content="{{site.title}} — {{site.tagline}}">
   <meta name="twitter:description" content="Technical blog on edge AI, on-device inference, and mobile AI engineering.">
 
-  <!-- JSON-LD Structured Data -->
+  <!-- JSON-LD -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -38,73 +38,134 @@
       "jobTitle": "On-Device AI Engineer",
       "worksFor": { "@type": "Organization", "name": "RunAnywhere" },
       "url": "{{site.github}}",
-      "sameAs": [
-        "{{site.twitter}}",
-        "{{site.linkedin}}",
-        "{{site.github}}"
-      ]
+      "sameAs": ["{{site.twitter}}", "{{site.linkedin}}", "{{site.github}}"]
     }
   }
   </script>
 
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%23e8a54b'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='%23111110' font-family='system-ui' font-weight='700'>S</text></svg>">
+
   <style>
     :root {
-      --bg: #0a0a0a;
-      --surface: #111111;
-      --border: #1a1a1a;
-      --text: #e0e0e0;
-      --text-secondary: #888;
-      --accent: #3b82f6;
-      --accent-dim: #1d4ed8;
-      --tag-bg: #1a1a2e;
-      --tag-text: #7c8cf5;
-      --code-bg: #161616;
-      --max-width: 720px;
+      --bg: #111110;
+      --surface: #1a1a18;
+      --surface-raised: #222220;
+      --border: #2a2a27;
+      --border-subtle: #1f1f1d;
+      --text: #eeece8;
+      --text-secondary: #a09f98;
+      --text-tertiary: #706f68;
+      --accent: #e8a54b;
+      --accent-dim: #b8842e;
+      --accent-subtle: rgba(232, 165, 75, 0.08);
+      --tag-bg: #1e1d1a;
+      --tag-text: #c4a46a;
+      --tag-border: #2e2d28;
+      --max-width: 700px;
     }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.7;
       -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    .container { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; }
 
-    /* Header */
+    .container {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    /* ──────── Header ──────── */
     header {
-      padding: 80px 0 48px;
-      border-bottom: 1px solid var(--border);
+      padding: 72px 0 44px;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .header-icon {
+      width: 44px;
+      height: 44px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .header-icon svg {
+      width: 22px;
+      height: 22px;
+      color: var(--bg);
+      stroke-width: 2.5;
     }
     header h1 {
-      font-size: 2rem;
+      font-size: 1.8rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 8px;
+      letter-spacing: -0.03em;
+      color: #fff;
     }
     header .tagline {
       color: var(--text-secondary);
-      font-size: 1.05rem;
-      margin-bottom: 20px;
+      font-size: 1rem;
+      margin-bottom: 24px;
+      line-height: 1.6;
     }
     .links {
       display: flex;
       gap: 20px;
       flex-wrap: wrap;
+      align-items: center;
     }
     .links a {
-      color: var(--text-secondary);
+      color: var(--text-tertiary);
       text-decoration: none;
-      font-size: 0.9rem;
-      transition: color 0.2s;
+      font-size: 0.86rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: color 0.2s ease;
     }
     .links a:hover { color: var(--accent); }
+    .links a svg {
+      width: 15px;
+      height: 15px;
+    }
 
-    /* Posts */
-    .posts { padding: 40px 0 80px; }
+    /* ──────── Divider ──────── */
+    .divider {
+      height: 1px;
+      background: var(--border-subtle);
+      margin-bottom: 12px;
+    }
+
+    /* ──────── Posts ──────── */
+    .posts {
+      padding: 24px 0 72px;
+    }
     .post-card {
-      padding: 28px 0;
-      border-bottom: 1px solid var(--border);
+      padding: 24px 0;
+    }
+    .post-card + .post-card {
+      border-top: 1px solid var(--border-subtle);
     }
     .post-card a {
       text-decoration: none;
@@ -112,63 +173,100 @@
       display: block;
     }
     .post-card h2 {
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       font-weight: 600;
       letter-spacing: -0.01em;
       margin-bottom: 6px;
-      transition: color 0.2s;
+      color: var(--text);
+      transition: color 0.2s ease;
+      line-height: 1.4;
     }
-    .post-card a:hover h2 { color: var(--accent); }
+    .post-card a:hover h2 {
+      color: var(--accent);
+    }
     .post-meta {
-      color: var(--text-secondary);
-      font-size: 0.85rem;
+      color: var(--text-tertiary);
+      font-size: 0.84rem;
       margin-bottom: 8px;
+      font-weight: 400;
     }
     .post-description {
       color: var(--text-secondary);
-      font-size: 0.95rem;
+      font-size: 0.94rem;
       line-height: 1.6;
     }
-    .post-tags { margin-top: 10px; }
+    .post-tags {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
     .tag {
       display: inline-block;
       background: var(--tag-bg);
       color: var(--tag-text);
-      padding: 2px 10px;
-      border-radius: 4px;
-      font-size: 0.78rem;
-      margin-right: 6px;
-    }
-
-    /* Footer */
-    footer {
-      padding: 32px 0;
-      border-top: 1px solid var(--border);
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      text-align: center;
+      padding: 3px 12px;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      border: 1px solid var(--tag-border);
     }
 
     .empty-state {
       padding: 60px 0;
       text-align: center;
-      color: var(--text-secondary);
+      color: var(--text-tertiary);
+      font-size: 0.95rem;
+    }
+
+    /* ──────── Footer ──────── */
+    footer {
+      padding: 28px 0;
+      border-top: 1px solid var(--border-subtle);
+      color: var(--text-tertiary);
+      font-size: 0.82rem;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* ──────── Scrollbar ──────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    ::selection {
+      background: rgba(232, 165, 75, 0.25);
+      color: #fff;
+    }
+
+    @media (max-width: 640px) {
+      header { padding: 48px 0 32px; }
+      header h1 { font-size: 1.5rem; }
+      .container { padding: 0 18px; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>{{site.title}}</h1>
+      <div class="header-top">
+        <div class="header-icon">
+          <i data-lucide="cpu"></i>
+        </div>
+        <h1>{{site.title}}</h1>
+      </div>
       <p class="tagline">{{site.tagline}}</p>
       <div class="links">
-        <a href="{{site.github}}">GitHub</a>
-        <a href="{{site.twitter}}">X/Twitter</a>
-        <a href="{{site.linkedin}}">LinkedIn</a>
-        <a href="mailto:{{site.email}}">Email</a>
-        <a href="/rss.xml">RSS</a>
+        <a href="{{site.github}}"><i data-lucide="github"></i> GitHub</a>
+        <a href="{{site.twitter}}"><i data-lucide="twitter"></i> X/Twitter</a>
+        <a href="{{site.linkedin}}"><i data-lucide="linkedin"></i> LinkedIn</a>
+        <a href="mailto:{{site.email}}"><i data-lucide="mail"></i> Email</a>
+        <a href="/rss.xml"><i data-lucide="rss"></i> RSS</a>
       </div>
     </header>
+
+    <div class="divider"></div>
 
     <section class="posts">
       {{posts}}
@@ -178,5 +276,11 @@
       Siddhesh Sonar · On-Device AI Engineer · Building at RunAnywhere (YC W26) · Creator of ToolNeuron
     </footer>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
 </body>
 </html>

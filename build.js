@@ -98,6 +98,22 @@ let indexPage = indexTemplate
 
 fs.writeFileSync(path.join(DIST_DIR, 'index.html'), indexPage);
 
+// Copy public/ assets (images, etc.) to dist/
+const PUBLIC_DIR = path.join(__dirname, 'public');
+if (fs.existsSync(PUBLIC_DIR)) {
+  const copyDir = (src, dest) => {
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      if (entry.isDirectory()) copyDir(srcPath, destPath);
+      else fs.copyFileSync(srcPath, destPath);
+    }
+  };
+  copyDir(PUBLIC_DIR, DIST_DIR);
+  console.log('Copied public/ assets to dist/');
+}
+
 // Build RSS feed
 const rssItems = posts.map(post => `
   <item>
