@@ -10,7 +10,7 @@ const TEMPLATE_DIR = path.join(__dirname, 'templates');
 const SITE = {
   title: 'Siddhesh Sonar',
   tagline: 'On-Device AI Engineer — Edge Inference, llama.cpp, GGML, Android',
-  url: 'https://siddheshsonar.vercel.app',
+  url: 'https://siddhesh-blogs.vercel.app',
   github: 'https://github.com/Siddhesh2377',
   twitter: 'https://x.com/Sonar_2377',
   linkedin: 'https://linkedin.com/in/siddhesh-sonar-7840a7260',
