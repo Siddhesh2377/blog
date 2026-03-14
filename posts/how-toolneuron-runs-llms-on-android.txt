@@ -33,18 +33,22 @@ Both are good frameworks, but for LLM inference on Android:
 
 - TFLite doesn't natively support the transformer architectures used by Llama, Qwen, Mistral, etc. You'd need to convert models, losing quantization quality.
 - ONNX Runtime supports transformers but its Android footprint is large, and KV-cache management for autoregressive generation isn't as mature.
-- llama.cpp/GGML was built specifically for this. It understands GGUF model format natively, handles KV-cache efficiently, and supports quantization schemes (Q4_K_M, Q5_K_S, Q8_0) that were designed for the exact memory/quality tradeoffs we need on mobile.
+- llama.cpp/GGML was built specifically for this. It understands GGUF model format natively, handles KV-cache efficiently, and supports quantization schemes (`Q4_K_M`, `Q5_K_S`, `Q8_0`) that were designed for the exact memory/quality tradeoffs we need on mobile.
 
 GGUF Model Loading
 
 When ToolNeuron loads a model, here's what actually happens:
 
-  llama_model_params model_params = llama_model_default_params();
-  model_params.n_gpu_layers = 0;  // CPU-only on most Android devices
-  model_params.use_mmap = true;   // Memory-map the file — critical for mobile
-  llama_model* model = llama_load_model_from_file(path, model_params);
+```cpp
+// Simplified — the actual code has error handling and progress callbacks
+llama_model_params model_params = llama_model_default_params();
+model_params.n_gpu_layers = 0;  // CPU-only on most Android devices
+model_params.use_mmap = true;   // Memory-map the file — critical for mobile
 
-use_mmap = true is critical. Memory-mapping means the OS loads model weights from disk on demand instead of reading the entire file into RAM. On a 4GB quantized model, this can mean the difference between 4GB resident memory and 1-2GB, because the OS only keeps recently-accessed pages in RAM.
+llama_model* model = llama_load_model_from_file(path, model_params);
+```
+
+`use_mmap = true` is critical. Memory-mapping means the OS loads model weights from disk on demand instead of reading the entire file into RAM. On a 4GB quantized model, this can mean the difference between 4GB resident memory and 1-2GB, because the OS only keeps recently-accessed pages in RAM.
 
 Quantization: The Key Tradeoff
 
@@ -55,9 +59,9 @@ A 7B model in FP16 is ~14GB. That won't fit on any phone. Quantization compresse
   Q4_K_M  ~4.1GB   Acceptable quality   1.3x faster
   Q3_K_M  ~3.3GB   Noticeable loss      1.5x faster
 
-ToolNeuron defaults to Q4_K_M for 7B models on devices with 6GB+ RAM. For 8GB+ devices, Q5_K_S gives a meaningful quality improvement at a small speed cost.
+ToolNeuron defaults to `Q4_K_M` for 7B models on devices with 6GB+ RAM. For 8GB+ devices, `Q5_K_S` gives a meaningful quality improvement at a small speed cost.
 
-The quantization format isn't just about size — it affects which SIMD instructions can be used. ARM NEON can process Q4 weights using vld1q_u8 + shift operations that are extremely efficient. Q5 requires extra bit manipulation that's measurably slower.
+The quantization format isn't just about size — it affects which SIMD instructions can be used. ARM NEON can process Q4 weights using `vld1q_u8` + shift operations that are extremely efficient. Q5 requires extra bit manipulation that's measurably slower.
 
 Layer 2: JNI Bridge
 
@@ -65,47 +69,53 @@ Kotlin can't call C++ directly. The Java Native Interface (JNI) is the bridge, a
 
 The Naive Approach (Don't Do This)
 
-  // BAD: Allocating a new string for every token
-  external fun generateNextToken(): String
+```kotlin
+// BAD: Allocating a new string for every token
+external fun generateNextToken(): String
+```
 
 This creates a new Java String object for every generated token. At 20 tokens/second, that's 20 JNI boundary crossings and 20 heap allocations per second. The garbage collector will hate you.
 
 What ToolNeuron Does Instead
 
-  // GOOD: Batch callback with direct byte buffer
-  external fun startGeneration(
-      modelPtr: Long,
-      prompt: String,
-      params: Long,
-      callback: Long  // Function pointer to Kotlin callback
-  )
+```kotlin
+// GOOD: Batch callback with direct byte buffer
+external fun startGeneration(
+    modelPtr: Long,
+    prompt: String,
+    params: Long,
+    callback: Long  // Function pointer to Kotlin callback
+)
+```
 
-The native code runs the full generation loop in C++, calling back to Kotlin only when it has a batch of tokens or when the user needs to see output. This minimizes JNI crossings from O(tokens) to O(batches).
+The native code runs the full generation loop in C++, calling back to Kotlin only when it has a batch of tokens or when the user needs to see output. This minimizes JNI crossings from `O(tokens)` to `O(batches)`.
 
-For the token data itself, we use DirectByteBuffer — a Java NIO buffer that lives outside the JVM heap, accessible from both C++ and Kotlin without copying:
+For the token data itself, we use `DirectByteBuffer` — a Java NIO buffer that lives outside the JVM heap, accessible from both C++ and Kotlin without copying:
 
-  // C++ side: write token directly into shared buffer
-  void write_token_to_buffer(JNIEnv* env, jobject buffer,
-                             const char* token, int len) {
-      char* buf = (char*)env->GetDirectBufferAddress(buffer);
-      memcpy(buf + offset, token, len);
-  }
+```cpp
+// C++ side: write token directly into shared buffer
+void write_token_to_buffer(JNIEnv* env, jobject buffer,
+                           const char* token, int len) {
+    char* buf = (char*)env->GetDirectBufferAddress(buffer);
+    memcpy(buf + offset, token, len);
+}
+```
 
 Memory Management Across the JNI Boundary
 
-The model pointer (llama_model*) lives in C++ heap memory. Kotlin holds it as a Long. This means:
+The model pointer (`llama_model*`) lives in C++ heap memory. Kotlin holds it as a `Long`. This means:
 1. Kotlin can pass the pointer to any JNI function
 2. The model isn't subject to garbage collection
 3. You MUST manually free it — there's no destructor
 
-ToolNeuron uses a reference-counted wrapper that calls llama_free_model() when the last Kotlin reference is released. If the app crashes before cleanup, Android's process death handles it — the OS reclaims all memory including native allocations.
+ToolNeuron uses a reference-counted wrapper that calls `llama_free_model()` when the last Kotlin reference is released. If the app crashes before cleanup, Android's process death handles it — the OS reclaims all memory including native allocations.
 
 Layer 3: Kotlin Inference Manager
 
 This layer handles everything the C++ layer shouldn't care about:
 - Model discovery: Scanning storage for GGUF files, reading metadata
 - Runtime model switching: Unloading one model, loading another without restarting
-- Context management: Creating/destroying llama contexts for different conversations
+- Context management: Creating/destroying `llama_context` for different conversations
 - Parameter management: Temperature, top-p, top-k, repeat penalty — all configurable per-conversation
 - Streaming output: Converting token callbacks into Kotlin Flows that the UI observes
 
@@ -119,19 +129,19 @@ Switching models on mobile is expensive. You need to:
 5. Load the new model
 6. Create a new context
 
-Steps 3-4 are where Android gets tricky. llama_free_model() calls free(), but the allocator might not return memory to the OS immediately. ToolNeuron forces a malloc_trim(0) after freeing to hint that the freed memory should be returned.
+Steps 3-4 are where Android gets tricky. `llama_free_model()` calls `free()`, but the allocator might not return memory to the OS immediately. ToolNeuron forces a `malloc_trim(0)` after freeing to hint that the freed memory should be returned.
 
 Layer 4: UI
 
-Jetpack Compose observes the Kotlin Flows from the Inference Manager. Token-by-token streaming is rendered using LazyColumn with incremental text updates. Nothing fancy here — the complexity is all below.
+Jetpack Compose observes the Kotlin Flows from the Inference Manager. Token-by-token streaming is rendered using `LazyColumn` with incremental text updates. Nothing fancy here — the complexity is all below.
 
 What I Learned Building This
 
-1. mmap is non-negotiable on mobile. Without it, you're dead on devices with less than 8GB RAM.
+1. `mmap` is non-negotiable on mobile. Without it, you're dead on devices with less than 8GB RAM.
 
 2. JNI crossings are expensive. Batch your data. Use direct buffers. Minimize the number of JNI calls in hot paths.
 
-3. Quantization choice depends on the device, not just the model. Q4_K_M on a Snapdragon 8 Gen 3 gives different quality/speed tradeoffs than on a Dimensity 9300 because of different NEON implementations and cache sizes.
+3. Quantization choice depends on the device, not just the model. `Q4_K_M` on a Snapdragon 8 Gen 3 gives different quality/speed tradeoffs than on a Dimensity 9300 because of different NEON implementations and cache sizes.
 
 4. Android will kill your app. If you're using too much memory and the user switches to another app, Android's LMK (Low Memory Killer) will terminate your process. You need to be aggressive about memory management and graceful about being killed.
 
@@ -139,7 +149,7 @@ What I Learned Building This
 
 Numbers
 
-On a Snapdragon 8 Gen 2 device with 8GB RAM, running Qwen 2.5 7B Q4_K_M:
+On a Snapdragon 8 Gen 2 device with 8GB RAM, running Qwen 2.5 7B `Q4_K_M`:
 
   Model load time:       ~3.2 seconds (mmap, cold start)
   Prompt processing:     ~180 tokens/second

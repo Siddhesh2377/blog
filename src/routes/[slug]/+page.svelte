@@ -1,5 +1,23 @@
 <script>
 	import { site } from '$lib/config.js';
+	import hljs from 'highlight.js/lib/core';
+	import kotlin from 'highlight.js/lib/languages/kotlin';
+	import cpp from 'highlight.js/lib/languages/cpp';
+	import javascript from 'highlight.js/lib/languages/javascript';
+	import python from 'highlight.js/lib/languages/python';
+	import bash from 'highlight.js/lib/languages/bash';
+	import java from 'highlight.js/lib/languages/java';
+
+	hljs.registerLanguage('kotlin', kotlin);
+	hljs.registerLanguage('cpp', cpp);
+	hljs.registerLanguage('c', cpp);
+	hljs.registerLanguage('javascript', javascript);
+	hljs.registerLanguage('js', javascript);
+	hljs.registerLanguage('python', python);
+	hljs.registerLanguage('py', python);
+	hljs.registerLanguage('bash', bash);
+	hljs.registerLanguage('sh', bash);
+	hljs.registerLanguage('java', java);
 
 	let { data } = $props();
 	const post = data.post;
@@ -10,15 +28,40 @@
 		day: 'numeric'
 	});
 
-	// Convert plain text to HTML: paragraphs + links
 	function renderText(text) {
-		return text
+		// Extract code blocks, replace with placeholders
+		const codeBlocks = [];
+		const withPlaceholders = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+			const trimmed = code.trimEnd();
+			let highlighted;
+			if (lang && hljs.getLanguage(lang)) {
+				highlighted = hljs.highlight(trimmed, { language: lang }).value;
+			} else {
+				highlighted = trimmed
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;');
+			}
+			const i = codeBlocks.length;
+			codeBlocks.push(`<pre><code class="hljs">${highlighted}</code></pre>`);
+			return `\x00CODE${i}\x00`;
+		});
+
+		// Process remaining text as paragraphs
+		return withPlaceholders
 			.split(/\n\n+/)
 			.map((block) => {
-				let html = block
+				const trimmed = block.trim();
+				if (!trimmed) return '';
+				if (trimmed.startsWith('\x00CODE')) {
+					const i = parseInt(trimmed.replace(/\x00CODE|\x00/g, ''));
+					return codeBlocks[i];
+				}
+				let html = trimmed
 					.replace(/&/g, '&amp;')
 					.replace(/</g, '&lt;')
 					.replace(/>/g, '&gt;')
+					.replace(/`([^`]+)`/g, '<code>$1</code>')
 					.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2">$1</a>')
 					.replace(/\n/g, '<br>');
 				return `<p>${html}</p>`;

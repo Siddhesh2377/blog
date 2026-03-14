@@ -19,6 +19,12 @@
   --toggle-bg: #f0efec;
   --toggle-border: #ddd9d3;
   --toggle-hover: #e8e7e3;
+  --code-bg: #f3f1ed;
+  --code-border: #e0ddd6;
+  --code-text: #3d3a36;
+  --code-inline: #9e5a08;
+  --hl-string: #5a8a3b;
+  --hl-number: #b06c15;
   --max-width: 700px;
   color-scheme: light;
 }
@@ -39,6 +45,12 @@
   --toggle-bg: #1a1a18;
   --toggle-border: #2a2a27;
   --toggle-hover: #222220;
+  --code-bg: #161614;
+  --code-border: #2a2a27;
+  --code-text: #d4d2cc;
+  --code-inline: #e8a54b;
+  --hl-string: #8abf65;
+  --hl-number: #d4976a;
   color-scheme: dark;
 }
 
@@ -207,6 +219,61 @@ nav a {
 .content a {
   color: var(--link);
 }
+
+/* ──────── Inline Code ──────── */
+.content code {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.85em;
+  color: var(--code-inline);
+}
+
+/* ──────── Code Blocks ──────── */
+.content pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  overflow-x: auto;
+  margin: 20px 0;
+  line-height: 1.6;
+}
+.content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.86rem;
+  color: var(--code-text);
+}
+
+/* ──────── Syntax Highlighting (theme-matched) ──────── */
+.hljs { color: var(--code-text); }
+.hljs-comment,
+.hljs-quote { color: var(--text-tertiary); font-style: italic; }
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-type { color: var(--accent); font-weight: 500; }
+.hljs-string,
+.hljs-template-variable { color: var(--hl-string); }
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-tag { color: var(--hl-number); }
+.hljs-title,
+.hljs-title\.function_,
+.hljs-section { color: var(--text-heading); font-weight: 600; }
+.hljs-built_in,
+.hljs-name { color: var(--accent-dim); }
+.hljs-attr,
+.hljs-attribute { color: var(--hl-number); }
+.hljs-meta,
+.hljs-meta .hljs-keyword { color: var(--text-secondary); }
+.hljs-params { color: var(--code-text); }
+.hljs-punctuation { color: var(--text-tertiary); }
 
 /* ──────── Footer ──────── */
 footer {
