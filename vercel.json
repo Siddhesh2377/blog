@@ -1,17 +1,9 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "framework": null,
+  "framework": "sveltekit",
+  "outputDirectory": "build",
   "headers": [
     {
       "source": "/llms.txt",
-      "headers": [
-        { "key": "Content-Type", "value": "text/plain; charset=utf-8" }
-      ]
-    },
-    {
-      "source": "/(.*)/index.txt",
       "headers": [
         { "key": "Content-Type", "value": "text/plain; charset=utf-8" }
       ]

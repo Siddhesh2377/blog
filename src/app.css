@@ -1,0 +1,239 @@
+/* ═══════════════════════════════════════════
+   Siddhesh Sonar Blog — Plain Text Style
+   Light = default · Dark = toggle
+   ═══════════════════════════════════════════ */
+
+/* ──────── Light Theme (Default) ──────── */
+:root {
+  --bg: #faf9f7;
+  --text: #1a1918;
+  --text-heading: #0d0d0c;
+  --text-secondary: #555250;
+  --text-tertiary: #8a8784;
+  --accent: #c47a1a;
+  --accent-dim: #a06315;
+  --link: #b06c15;
+  --border: #ddd9d3;
+  --selection-bg: rgba(196, 122, 26, 0.18);
+  --selection-color: #1a1918;
+  --toggle-bg: #f0efec;
+  --toggle-border: #ddd9d3;
+  --toggle-hover: #e8e7e3;
+  --max-width: 700px;
+  color-scheme: light;
+}
+
+/* ──────── Dark Theme ──────── */
+[data-theme="dark"] {
+  --bg: #111110;
+  --text: #eeece8;
+  --text-heading: #ffffff;
+  --text-secondary: #a09f98;
+  --text-tertiary: #706f68;
+  --accent: #e8a54b;
+  --accent-dim: #b8842e;
+  --link: #e8a54b;
+  --border: #2a2a27;
+  --selection-bg: rgba(232, 165, 75, 0.25);
+  --selection-color: #fff;
+  --toggle-bg: #1a1a18;
+  --toggle-border: #2a2a27;
+  --toggle-hover: #222220;
+  color-scheme: dark;
+}
+
+/* ──────── Base ──────── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* ──────── Theme Toggle ──────── */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--toggle-border);
+  background: var(--toggle-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+.theme-toggle:hover {
+  background: var(--toggle-hover);
+  border-color: var(--accent);
+}
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
+}
+.theme-toggle:hover svg {
+  color: var(--accent);
+}
+.theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: block; }
+[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+/* ──────── About / Header ──────── */
+.about {
+  padding: 72px 0 36px;
+}
+.about h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin-bottom: 8px;
+}
+.about p {
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  line-height: 1.7;
+}
+.about .links {
+  margin-top: 12px;
+  color: var(--text-tertiary);
+}
+.about .links a {
+  font-weight: 500;
+}
+
+/* ──────── Divider ──────── */
+hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 24px 0;
+}
+
+/* ──────── Post List ──────── */
+.posts {
+  padding: 12px 0 72px;
+}
+.posts h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: lowercase;
+  margin-bottom: 20px;
+}
+.post-item {
+  margin-bottom: 20px;
+}
+.post-item a {
+  font-weight: 500;
+  color: var(--text);
+  font-size: 1.02rem;
+}
+.post-item a:hover {
+  color: var(--accent);
+}
+.post-meta {
+  color: var(--text-tertiary);
+  font-size: 0.84rem;
+  display: block;
+  margin-top: 2px;
+}
+.post-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-top: 4px;
+  line-height: 1.6;
+}
+.post-tags {
+  color: var(--text-tertiary);
+  font-size: 0.84rem;
+}
+
+/* ──────── Nav ──────── */
+nav {
+  padding: 28px 0;
+}
+nav a {
+  color: var(--text-tertiary);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* ──────── Post Header ──────── */
+.post-header {
+  padding: 48px 0 32px;
+}
+.post-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  line-height: 1.3;
+  margin-bottom: 10px;
+}
+
+/* ──────── Article Content ──────── */
+.content {
+  padding-bottom: 48px;
+  font-size: 1rem;
+}
+.content p {
+  margin-bottom: 16px;
+  line-height: 1.85;
+}
+.content a {
+  color: var(--link);
+}
+
+/* ──────── Footer ──────── */
+footer {
+  padding: 32px 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+footer a {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+footer a:hover {
+  color: var(--accent);
+}
+
+/* ──────── Selection ──────── */
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-color);
+}
+
+/* ──────── Mobile ──────── */
+@media (max-width: 640px) {
+  .about { padding: 48px 0 28px; }
+  .about h1 { font-size: 1.4rem; }
+  .post-header h1 { font-size: 1.4rem; }
+  .container { padding: 0 18px; }
+  .theme-toggle { top: 14px; right: 14px; width: 36px; height: 36px; }
+}

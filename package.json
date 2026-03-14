@@ -1,14 +1,19 @@
 {
   "name": "siddhesh-sonar-blog",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "private": true,
   "description": "Deep technical writing on edge AI, on-device inference, and mobile AI engineering",
   "scripts": {
-    "build": "node build.js",
-    "dev": "node build.js && npx serve dist",
-    "new": "node new-post.js"
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview"
   },
-  "dependencies": {
-    "marked": "^12.0.0",
-    "front-matter": "^4.0.2"
-  }
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.8",
+    "@sveltejs/kit": "^2.15.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "svelte": "^5.0.0",
+    "vite": "^6.0.0"
+  },
+  "type": "module"
 }
